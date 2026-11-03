@@ -4,6 +4,16 @@ A shared calendar for you and your friends, served by uvicorn (FastAPI + SQLite,
 Each group runs **its own copy** with its own database and its own password. Nothing is shared
 between installs.
 
+> ### Disclaimer: built with AI
+> This project was created with the help of AI tools (an AI coding assistant wrote and edited
+> much of the code and documentation under human direction). AI-generated code can contain
+> bugs and security flaws that are easy to miss. **Review it yourself before relying on it,**
+> especially before exposing it to the internet or storing anything sensitive in it.
+>
+> It is a small hobby app with a single shared password and no login rate limiting, not a hardened
+> product. It is provided **"as is", without warranty of any kind**, and you use it at your own
+> risk. Don't put secrets, passwords or private information in event titles or notes.
+
 ## Quick start (make your own calendar)
 You need **Python 3.10+**. Works on Windows, macOS and Linux.
 

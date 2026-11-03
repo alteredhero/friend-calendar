@@ -1,6 +1,18 @@
 # Secrets - never commit these
 auth.json
 .session_secret
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+id_rsa*
+id_ed25519*
+*.pub
+cloudflared/
+*.token
 
 # Your group's data
 *.db
@@ -16,4 +28,3 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-.env
