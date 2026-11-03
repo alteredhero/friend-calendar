@@ -18,6 +18,11 @@ cloudflared/
 *.db
 *.db-journal
 *.db.bak*
+auth.json.bak*
+.session_secret.bak*
+
+# Backups made by backup.py (they contain your data and password hash)
+*.zip
 *.db-wal
 *.db-shm
 

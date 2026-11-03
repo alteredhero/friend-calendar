@@ -55,7 +55,7 @@ friends get a Cloudflare error page (usually 502) until you sign in to Windows.
 | Restart the app (e.g. after a code change) | Tray icon > **Restart** |
 | See what happened | Tray icon > **View log** (`friend-calendar.log`) |
 | Take the site offline | Quit the tray app (friends see a 502). To also stop the tunnel: `net stop cloudflared` from an **admin** prompt (`net start cloudflared` brings it back) |
-| Back up the data | `py -3.11 -c "import sqlite3; s=sqlite3.connect('calendar.db'); d=sqlite3.connect('calendar.db.bak-manual'); s.backup(d)"` (safe while the server is running) |
+| Back up the data | `py -3.11 backup.py export` (safe while the server is running; see the README) |
 
 ## Troubleshooting
 
@@ -84,6 +84,22 @@ HTTP on localhost. Cloudflare creates the DNS record for you.
 zone in your own Cloudflare account. Free-subdomain services don't work for this. We tried:
 *is-a.dev* rejects tunnel records outright (its checks fail with `CNAME cannot end with
 .cfargotunnel.com`), and *DuckDNS* only supports A/AAAA records, which can't point at a tunnel.
+
+## Moving the tunnel to a new machine
+
+When you move the calendar to a new PC or server (see "Backups, and moving to a new PC or
+server" in the README), the public URL can stay exactly the same, because the hostname points at
+the *tunnel*, not at a machine:
+
+1. Move the data and start the app on the new machine first (`backup.py export` / `import`).
+2. In the Cloudflare dashboard open your tunnel and choose **Add a replica / Install connector**.
+   It shows the install command for your OS, which includes the tunnel token.
+3. Run that command on the new machine. Check the tunnel now shows the new connector as healthy.
+4. **Stop and uninstall `cloudflared` on the old machine** (Windows: `net stop cloudflared`, then
+   `cloudflared service uninstall`). Connectors share a tunnel's traffic, so leaving the old one
+   running means some friends would still be served the old, stale calendar.
+5. Keep the service URL at `localhost:<port>`; no hostname change is needed unless you changed
+   the port.
 
 ## Throwaway sharing without any Cloudflare setup
 

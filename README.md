@@ -62,6 +62,57 @@ python set_password.py --clear   # remove the password: anyone who can reach the
 The server is plain HTTP; put HTTPS in front of it (the tunnel does this for you) before sending
 a password over the internet.
 
+## Backups, and moving to a new PC or server
+Everything that makes your calendar *yours* is three git-ignored files: `calendar.db` (events and
+users), `auth.json` (password hash) and `.session_secret` (keeps friends signed in).
+`backup.py` packs them into one zip and unpacks them again:
+
+```bash
+python backup.py export                       # -> friend-calendar-backup-YYYY-MM-DD.zip
+python backup.py export my-backup.zip         # or pick the name
+python backup.py import my-backup.zip         # restore into this install
+python backup.py import my-backup.zip --force # replace data that's already here
+```
+
+- **Exporting is safe while the server is running**, so it doubles as your regular backup. Copy
+  the zip somewhere other than this machine now and then.
+- **Keep the zip private.** It contains your data and your password hash. Zips are git-ignored.
+- Importing checks the database first and **refuses a damaged or foreign file without touching
+  anything**. With `--force`, whatever it replaces is kept as `*.bak-<timestamp>`.
+- **Stop the server before importing** (the importer tells you if a file is still in use).
+
+### Moving to a new PC or a dedicated server
+1. **Old machine:** `python backup.py export`, then copy the zip to the new machine
+   (USB stick, `scp`, cloud drive, whatever).
+2. **New machine:** do the [Quick start](#quick-start-make-your-own-calendar) up to the
+   `pip install` step. **Skip** `set_password.py`, because your password comes with the zip.
+3. `python backup.py import friend-calendar-backup-....zip`
+4. `python main.py`. Your events, users and password are all there, and friends stay signed in.
+5. **Point friends at the new place.** On a LAN that's the new IP. With a Cloudflare tunnel,
+   move the tunnel connector as described in the
+   [hosting guide](deploy/hosting-guide.md#moving-the-tunnel-to-a-new-machine) and the same URL
+   keeps working.
+6. Once happy, retire the old install (stop it, and turn off start-at-login if you used the tray).
+
+Use the same or a newer version of the code on the new machine. A database from an older version
+upgrades itself on first start, but an old copy of the code may not understand a newer database.
+
+On a Linux server you'll want it to start at boot. A minimal `systemd` unit:
+```ini
+[Unit]
+Description=Friend Calendar
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/friend-calendar
+ExecStart=/opt/friend-calendar/.venv/bin/python main.py
+Restart=on-failure
+User=friendcal
+
+[Install]
+WantedBy=multi-user.target
+```
+
 ## Configuration
 All optional, set as environment variables:
 
@@ -158,6 +209,7 @@ just signs everyone out).
 main.py             FastAPI app + SQLite (auto-migrates on start)
 passwords.py        password hashing helper (PBKDF2, stdlib only)
 set_password.py     CLI to set / change / clear the group password
+backup.py           export / import everything as one zip (backups and moving house)
 auth.example.json   shape of auth.json (your real one is git-ignored)
 tray_app.py         headless runner with the tray icon (Windows)
 Friend Calendar.bat launcher menu (Windows)
