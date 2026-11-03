@@ -1,0 +1,14 @@
+Friend Calendar - read me first
+
+This software was created with the help of AI tools. AI-generated code can contain bugs and
+security flaws that are easy to miss, so review it before relying on it, especially before
+exposing it to the internet.
+
+It is a small hobby app with one shared password and no login rate limiting, not a hardened
+product. It is provided "as is", without warranty of any kind, and you use it at your own risk.
+Don't put secrets, passwords or private information in event titles or notes.
+
+Source code and documentation: https://github.com/alteredhero/friend-calendar
+
+Windows may warn that the publisher is unknown ("SmartScreen"), because this installer is not
+code-signed. Only install builds you downloaded from the project's GitHub Releases page.

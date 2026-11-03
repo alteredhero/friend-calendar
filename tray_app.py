@@ -4,12 +4,19 @@
     python  tray_app.py --install    start automatically when you log in
     python  tray_app.py --uninstall  stop starting automatically
 
+The installed FriendCalendar.exe is this same program frozen with PyInstaller. It also answers
+to three one-shot helper commands, used by its tray menu and the installer:
+    --set-password           'choose the group password' dialog
+    --export-backup          'save a backup' dialog
+    --import-backup FILE.zip restore a backup (replaces what is there; old files kept as .bak)
+
 Why a tray app and not a Windows service? Services run in session 0, which has no desktop,
 so they can't show a tray icon -- and installing one needs admin rights. A per-user
 background app started at login gives you the icon and needs neither. (The trade-off: it
 starts when YOU log in, not at machine boot.)
 """
 import ctypes
+import hashlib
 import importlib.util
 import logging
 import os
@@ -18,16 +25,21 @@ import sys
 import threading
 import webbrowser
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+from paths import DATA_DIR, FROZEN, data_path
+
 SCRIPT = os.path.abspath(__file__)
-LOG_PATH = os.path.join(HERE, "friend-calendar.log")
+LOG_PATH = data_path("friend-calendar.log")
+HELPER_FLAGS = {"--set-password", "--export-backup", "--import-backup"}
 # Optional: set FRIEND_CALENDAR_PUBLIC_URL (e.g. https://calendar.example.com) to get an
 # "Open public site" item in the tray menu.
 PUBLIC_URL = os.environ.get("FRIEND_CALENDAR_PUBLIC_URL", "")
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "FriendCalendar"
-MUTEX_NAME = "Local\\FriendCalendarTray"
+# One tray per data folder: a second launch of the *same* calendar exits quietly, while a
+# separate calendar (different FRIEND_CALENDAR_DATA and port) can run beside it.
+MUTEX_NAME = "Local\\FriendCalendarTray-" + hashlib.sha1(
+    os.path.normcase(DATA_DIR).encode()).hexdigest()[:12]
 ERROR_ALREADY_EXISTS = 183
 REQUIRED = ("fastapi", "uvicorn", "pystray", "PIL")
 
@@ -48,8 +60,19 @@ def pythonw() -> str:
     return candidate if os.path.exists(candidate) else sys.executable
 
 
+def launch_command() -> list[str]:
+    """How to start this app again: autostart, Restart, and the helper dialogs all use it."""
+    return [sys.executable] if FROZEN else [pythonw(), SCRIPT]
+
+
 def autostart_command() -> str:
-    return f'"{pythonw()}" "{SCRIPT}"'
+    return " ".join(f'"{part}"' for part in launch_command())
+
+
+def spawn(*extra: str) -> None:
+    """Start a detached copy of this app (with extra arguments) and don't wait for it."""
+    subprocess.Popen([*launch_command(), *extra], cwd=DATA_DIR, close_fds=True,
+                     creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
 
 
 def autostart_enabled() -> bool:
@@ -167,7 +190,7 @@ def make_icon(badge_rgb):
 
 
 def run() -> None:
-    os.chdir(HERE)
+    os.chdir(DATA_DIR)
     setup_logging()
     log = logging.getLogger("tray")
     if not acquire_single_instance():
@@ -195,6 +218,9 @@ def run() -> None:
     def toggle_autostart(icon, item):
         set_autostart(not autostart_enabled())
 
+    def open_data_folder(icon, item):
+        os.startfile(DATA_DIR)
+
     def quit_app(icon, item):
         log.info("quit requested")
         done.set()
@@ -206,8 +232,7 @@ def run() -> None:
         done.set()
         server.stop()
         release_single_instance()  # so the new process can take the mutex
-        subprocess.Popen([pythonw(), SCRIPT], cwd=HERE, close_fds=True,
-                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+        spawn()
         icon.stop()
 
     item, menu = pystray.MenuItem, pystray.Menu
@@ -220,6 +245,9 @@ def run() -> None:
             *([item("Open public site", open_public)] if PUBLIC_URL else []),
             menu.SEPARATOR,
             item("Start at login", toggle_autostart, checked=lambda i: autostart_enabled()),
+            item("Set group password...", lambda icon, item: spawn("--set-password")),
+            item("Back up data...", lambda icon, item: spawn("--export-backup")),
+            item("Open data folder", open_data_folder),
             item("View log", open_log),
             item("Restart", restart),
             item("Quit", quit_app),
@@ -245,6 +273,9 @@ def run() -> None:
 
     def setup(icon):
         icon.visible = True
+        if not calendar.load_credential():
+            icon.notify("No group password is set, so anyone who can reach this PC can edit the "
+                        "calendar. Right-click this icon > Set group password.", "Friend Calendar")
         server.start()
         threading.Thread(target=watch, name="watch", daemon=True).start()
 
@@ -253,11 +284,36 @@ def run() -> None:
     log.info("tray exited")
 
 
+def run_helper(args: list[str]) -> None:
+    """One-shot helper commands (no tray, no server). Errors become a message box, because a
+    windowed exe has no console to print them to."""
+    import backup
+    import set_password
+    try:
+        if "--set-password" in args:
+            set_password.run_gui()
+        elif "--export-backup" in args:
+            backup.export_gui()
+        else:
+            source = args[args.index("--import-backup") + 1:][:1]
+            if not source:
+                sys.exit("--import-backup needs the path of a backup .zip")
+            backup.import_backup(source[0], force=True)
+    except SystemExit as exit_request:
+        if isinstance(exit_request.code, str):  # sys.exit("message")
+            popup_error(exit_request.code)
+            sys.exit(1)
+        raise
+
+
 def main() -> None:
     args = sys.argv[1:]
+    if HELPER_FLAGS & set(args):
+        run_helper(args)
+        return
     if "--install" in args or "--uninstall" in args:
         if "--install" in args:
-            if missing := missing_packages():
+            if not FROZEN and (missing := missing_packages()):
                 sys.exit(f"Missing packages: {', '.join(missing)}\n"
                          "Run:  py -3.11 -m pip install -r requirements-tray.txt")
             set_autostart(True)

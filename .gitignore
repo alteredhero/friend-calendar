@@ -23,6 +23,12 @@ auth.json.bak*
 
 # Backups made by backup.py (they contain your data and password hash)
 *.zip
+
+# Installer build output (attach to a GitHub Release instead of committing)
+build/
+dist/
+*.exe
+packaging/icon.ico
 *.db-wal
 *.db-shm
 

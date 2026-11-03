@@ -21,12 +21,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from passwords import ALGORITHM, verify_password
+from paths import APP_DIR, data_path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(HERE, "calendar.db")
-STATIC_DIR = os.path.join(HERE, "static")
-AUTH_PATH = os.path.join(HERE, "auth.json")
-SECRET_PATH = os.path.join(HERE, ".session_secret")
+DB_PATH = data_path("calendar.db")
+STATIC_DIR = os.path.join(APP_DIR, "static")
+AUTH_PATH = data_path("auth.json")
+SECRET_PATH = data_path(".session_secret")
 AUTH_COOKIE = "fc_auth"
 
 HOST = os.environ.get("FRIEND_CALENDAR_HOST", "0.0.0.0")
@@ -52,7 +52,7 @@ app = FastAPI(title="Friend Calendar")
 # --------------------------------------------------------------------------- #
 # Shared-password gate
 # --------------------------------------------------------------------------- #
-def _load_credential() -> str:
+def load_credential() -> str:
     """The stored credential from auth.json (empty string = gate disabled).
 
     Normally a hash written by set_password.py ("password_hash"); a plaintext "password"
@@ -71,7 +71,7 @@ def _password_matches(candidate: str, credential: str) -> bool:
     return hmac.compare_digest(candidate.encode(), credential.encode())
 
 
-if not _load_credential():
+if not load_credential():
     log.warning("NO GROUP PASSWORD SET - anyone who can reach this server can edit the "
                 "calendar. Run:  python set_password.py")
 
@@ -86,7 +86,7 @@ def _secret() -> str:
 
 
 def _expected_token() -> str:
-    return hmac.new(_secret().encode(), _load_credential().encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_secret().encode(), load_credential().encode(), hashlib.sha256).hexdigest()
 
 
 # paths reachable without a session (login page + its assets + the login call)
@@ -95,7 +95,7 @@ _OPEN_PATHS = {"/login", "/api/login", "/favicon.ico"}
 
 @app.middleware("http")
 async def auth_gate(request: Request, call_next):
-    if not _load_credential():             # gate disabled: wide open
+    if not load_credential():             # gate disabled: wide open
         return await call_next(request)
     path = request.url.path
     if path in _OPEN_PATHS or path.startswith("/static/"):
@@ -132,7 +132,7 @@ def login_page():
 
 @app.post("/api/login")
 def login(body: LoginIn):
-    credential = _load_credential()
+    credential = load_credential()
     if not credential:
         return {"ok": True}
     if _password_matches(body.password.strip(), credential):

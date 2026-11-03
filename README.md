@@ -14,7 +14,29 @@ between installs.
 > product. It is provided **"as is", without warranty of any kind**, and you use it at your own
 > risk. Don't put secrets, passwords or private information in event titles or notes.
 
-## Quick start (make your own calendar)
+## Install on Windows (easiest, no Python needed)
+1. Download **`FriendCalendar-Setup-<version>.exe`** from the
+   [Releases page](https://github.com/alteredhero/friend-calendar/releases/latest).
+2. Run it. No admin rights needed. Windows SmartScreen may say "unknown publisher" because the
+   installer isn't code-signed: choose **More info > Run anyway**, but only for a file you got
+   from the Releases page.
+3. The wizard asks, optionally, for a **backup zip** to restore (moving from another PC?) and
+   whether to start the calendar when you sign in. At the end it asks you to **choose the group
+   password**.
+4. A calendar icon appears in the system tray (it may hide under the `^` arrow). Click it to open
+   the calendar in your browser, or share `http://<your-ip>:8032` with friends on your network.
+
+Right-click the tray icon for **Set group password...**, **Back up data...**, **Open data
+folder**, **Start at login**, **View log**, **Restart** and **Quit**.
+
+- Your data lives in `%LOCALAPPDATA%\FriendCalendar` (events, password hash, log), **separate
+  from the program**. Upgrading is just running a newer installer over the old one, and
+  uninstalling keeps your data (delete that folder to erase it).
+- Windows may show a firewall prompt the first time; allow **private networks** so friends on
+  your Wi-Fi can connect.
+- Prefer running from source (any OS)? Use the quick start below.
+
+## Quick start from source (make your own calendar)
 You need **Python 3.10+**. Works on Windows, macOS and Linux.
 
 ```bash
@@ -74,6 +96,9 @@ python backup.py import my-backup.zip         # restore into this install
 python backup.py import my-backup.zip --force # replace data that's already here
 ```
 
+- With the **Windows installer**, use the tray menu's **Back up data...**, and pick the zip on
+  the installer's "Restore a backup" page when you set up the new PC. The rest of this section
+  describes the command line, which works the same from source.
 - **Exporting is safe while the server is running**, so it doubles as your regular backup. Copy
   the zip somewhere other than this machine now and then.
 - **Keep the zip private.** It contains your data and your password hash. Zips are git-ignored.
@@ -121,6 +146,7 @@ All optional, set as environment variables:
 | `FRIEND_CALENDAR_PORT` | `8032` | port to listen on |
 | `FRIEND_CALENDAR_HOST` | `0.0.0.0` | interface to bind (`127.0.0.1` = this machine only) |
 | `FRIEND_CALENDAR_PUBLIC_URL` | *(none)* | Windows tray only: adds an "Open public site" menu item |
+| `FRIEND_CALENDAR_DATA` | project folder (source) / `%LOCALAPPDATA%\FriendCalendar` (installed .exe) | where `calendar.db`, `auth.json`, `.session_secret` and the log live |
 
 Personal files that stay on your machine and are **never committed**: `auth.json` (password
 hash), `.session_secret` (cookie signing key), `calendar.db*` (your data) and `*.log`.
@@ -197,6 +223,33 @@ to allow port 8032 through Windows Firewall). Install the dependencies with
 > After an update, a device that still shows a broken page needs one hard refresh (Ctrl+F5).
 > The server now tells browsers to revalidate, so this shouldn't recur.
 
+## Building the Windows installer (maintainers)
+The installer is a PyInstaller-frozen `tray_app.py` wrapped by [Inno Setup](https://jrsoftware.org/isinfo.php).
+You need Windows, Python 3.10+ (with tkinter) and Inno Setup 6
+(`winget install JRSoftware.InnoSetup`). Then:
+
+```bat
+py -3.11 packaging\build.py
+```
+
+It builds in a clean virtualenv under `build\` and writes
+`build\installer\FriendCalendar-Setup-<version>.exe`. The `build\` folder and `*.exe` files are
+git-ignored; binaries belong on a Release, not in the repo.
+
+To publish a release:
+1. Bump `__version__` in `version.py`, commit and push.
+2. `py -3.11 packaging\build.py`
+3. Check the SHA-256 and create the release:
+   ```bat
+   certutil -hashfile build\installer\FriendCalendar-Setup-<version>.exe SHA256
+   gh release create v<version> build\installer\FriendCalendar-Setup-<version>.exe --title "v<version>" --notes "..."
+   ```
+   Put the SHA-256 in the release notes so people can verify their download.
+
+The installer is **not code-signed**, so Windows SmartScreen warns on first run, and some
+antivirus tools are suspicious of any PyInstaller program. Signing needs a paid certificate;
+until then, the source here is the thing to trust, and you can always build the installer yourself.
+
 ## Hosting it on the internet
 See **`deploy/hosting-guide.md`**: how the Cloudflare tunnel, the hostname and the tray app fit
 together, everyday operations, and a troubleshooting table of the problems we actually hit.
@@ -208,6 +261,10 @@ just signs everyone out).
 ```
 main.py             FastAPI app + SQLite (auto-migrates on start)
 passwords.py        password hashing helper (PBKDF2, stdlib only)
+paths.py            where the app's files and your data live (source vs. installed)
+version.py          the version number (used by the installer build)
+packaging/          Windows installer: build.py, installer.iss, icon + disclaimer text
+requirements-build.txt  extra tooling to build the installer
 set_password.py     CLI to set / change / clear the group password
 backup.py           export / import everything as one zip (backups and moving house)
 auth.example.json   shape of auth.json (your real one is git-ignored)

@@ -44,7 +44,7 @@ friends get a Cloudflare error page (usually 502) until you sign in to Windows.
 |---|---|
 | Hostname and routing | **Cloudflare dashboard**, not a file here (see "Changing the hostname") |
 | Shared password | `auth.json`, managed with `python set_password.py` (applies immediately; changing it signs everyone out) |
-| Data | `calendar.db` |
+| Data | `calendar.db` (project folder, or `%LOCALAPPDATA%\FriendCalendar` if you used the Windows installer) |
 | Port | `FRIEND_CALENDAR_PORT` env var (default 8032). If you change it, change the dashboard's service URL too |
 
 ## Everyday operations

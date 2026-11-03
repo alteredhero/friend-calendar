@@ -18,14 +18,14 @@ import zipfile
 from contextlib import closing
 from datetime import datetime
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+from paths import DATA_DIR, data_path
+
 DB_NAME = "calendar.db"
 OPTIONAL = ("auth.json", ".session_secret")
 KNOWN = (DB_NAME, *OPTIONAL)  # the only names we ever read from a zip (no path tricks possible)
 
 
-def path_of(name: str) -> str:
-    return os.path.join(HERE, name)
+path_of = data_path
 
 
 def snapshot_db(dest: str) -> None:
@@ -47,7 +47,7 @@ def check_db(path: str) -> None:
 
 def export_backup(out_path: str) -> None:
     if not os.path.exists(path_of(DB_NAME)):
-        sys.exit(f"No {DB_NAME} found in {HERE} - nothing to back up.")
+        sys.exit(f"No {DB_NAME} found in {DATA_DIR} - nothing to back up.")
     with tempfile.TemporaryDirectory() as tmp, zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as z:
         snap = os.path.join(tmp, DB_NAME)
         snapshot_db(snap)
@@ -93,12 +93,33 @@ def import_backup(zip_path: str, force: bool) -> None:
         print("Note: the zip had no password; run `python set_password.py` if you want one.")
 
 
+def default_backup_name() -> str:
+    return f"friend-calendar-backup-{datetime.now():%Y-%m-%d}.zip"
+
+
+def export_gui() -> None:
+    """'Save as...' dialog (used by the tray menu of the installed app)."""
+    import tkinter as tk
+    from tkinter import filedialog, messagebox
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    target = filedialog.asksaveasfilename(
+        parent=root, title="Save a backup of your calendar", defaultextension=".zip",
+        initialfile=default_backup_name(), filetypes=[("Zip file", "*.zip")])
+    if target:
+        export_backup(target)
+        messagebox.showinfo("Friend Calendar", f"Backup saved to:\n{target}\n\n"
+                            "Keep it private: it contains your data and password hash.", parent=root)
+    root.destroy()
+
+
 def main() -> None:
     args = [a for a in sys.argv[1:] if a != "--force"]
     force = "--force" in sys.argv[1:]
     if args[:1] == ["export"] and len(args) <= 2:
         export_backup(args[1] if len(args) == 2
-                      else f"friend-calendar-backup-{datetime.now():%Y-%m-%d}.zip")
+                      else default_backup_name())
     elif args[:1] == ["import"] and len(args) == 2:
         import_backup(args[1], force)
     else:
