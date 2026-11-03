@@ -1,0 +1,4 @@
+{
+  "_comment": "Don't edit by hand - run `python set_password.py` to create your real auth.json (git-ignored) with a hashed password.",
+  "password_hash": ""
+}

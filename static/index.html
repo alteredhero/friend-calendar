@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Friend Calendar </title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1> Friend Calendar</h1>
+    <div class="legend" id="legend"></div>
+    <div class="who">
+      <span style="color:var(--muted);font-size:13px">You:</span>
+      <select id="me" style="min-width:140px">
+        <option value="">-- none --</option>
+      </select>
+      <button id="addUserBtn" title="Add a new user">+ user</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- US timezone reference table -->
+    <section class="tzref">
+      <h2>US timezones <span id="tzViewerNote" class="tz-note"></span></h2>
+      <div class="tzref-grid" id="tzTable"></div>
+    </section>
+
+    <!-- Snapshot for selected day -->
+    <section class="snapshot">
+      <h2 id="snapTitle">Snapshot</h2>
+      <div class="chips" id="snapChips"></div>
+    </section>
+
+    <!-- Calendar -->
+    <div class="cal-head">
+      <button id="prev">◀</button>
+      <h2 id="monthLabel"></h2>
+      <button id="next">▶</button>
+      <button class="primary" id="addBtn" style="margin-left:auto">+ Add event</button>
+    </div>
+    <div class="grid" id="dow"></div>
+    <div class="grid" id="cal"></div>
+
+    <!-- Timeline of everyone's day -->
+    <section class="timeline">
+      <h2 id="tlTitle">Everyone's day</h2>
+      <div id="timeline"></div>
+      <div class="tl-hours" id="tlHours"></div>
+    </section>
+
+    <!-- Scheduling assistant -->
+    <section class="assistant">
+      <h2>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:17px">
+          <input id="asstToggle" type="checkbox" style="width:auto" /> Scheduling assistant
+        </label>
+      </h2>
+      <div id="asstBody" style="display:none">
+        <p style="color:var(--muted);font-size:13px;margin:0 0 10px">
+          Tick the people involved. The green bar shows when everyone checked is free
+          on the focused day — pick a slot, then hit <b>+ Add event</b>.
+        </p>
+        <div class="asst-people" id="asstPeople"></div>
+        <div id="asstRows"></div>
+        <div class="tl-hours" id="asstHours"></div>
+        <div id="asstFreeText" style="margin-top:12px;font-size:14px"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Add/Edit modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h3 id="modalTitle">Add event</h3>
+      <div class="field">
+        <label>Title</label>
+        <input id="fTitle" type="text" placeholder="Movie night, Road trip..." />
+      </div>
+      <div class="field">
+        <label>Tag</label>
+        <div class="tags" id="fTags"></div>
+      </div>
+      <div class="field" id="detailField" style="display:none">
+        <label id="detailLabel">Detail</label>
+        <input id="fDetail" type="text" placeholder="" />
+      </div>
+      <div class="field">
+        <label id="timeLabel">Time</label>
+        <div class="time-row">
+          <input id="fStartTime" class="time-input" type="time" step="900" value="09:00" />
+          <span class="time-sep">to</span>
+          <input id="fEndTime" class="time-input" type="time" step="900" value="10:00" />
+          <span class="dur-read" id="durRead"></span>
+        </div>
+        <div class="slider-wrap">
+          <input id="fStart" type="range" min="0" max="1440" step="15" value="540" />
+        </div>
+        <div class="slider-wrap">
+          <input id="fEnd" type="range" min="0" max="1440" step="15" value="600" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Note (optional)</label>
+        <textarea id="fNote" rows="2" placeholder="details..."></textarea>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input id="fRepeat" type="checkbox" style="width:auto" /> Recurring event
+        </label>
+        <div id="repeatOpts" style="display:none;margin-top:8px">
+          <div class="slider-wrap">
+            <select id="fFreq" style="flex:0 0 auto">
+              <option value="week" selected>Weekly</option>
+              <option value="biweek">Bi-weekly</option>
+              <option value="month">Monthly</option>
+              <option value="year">Annually</option>
+            </select>
+            <span style="color:var(--muted);font-size:12px">for</span>
+            <input id="fCount" type="number" min="2" max="60" value="8" style="width:64px" />
+            <span style="color:var(--muted);font-size:12px">times</span>
+          </div>
+        </div>
+      </div>
+      <!-- shown only when editing an event that belongs to a series -->
+      <div class="field" id="scopeField" style="display:none">
+        <label>Apply to</label>
+        <div class="scope-opts">
+          <!-- text lives in ONE span per label: the label is a flex row, and loose text nodes
+               would each become a separate flex item with a visible gap between them -->
+          <label><input type="radio" name="scope" value="single" checked /><span>This event only</span></label>
+          <label><input type="radio" name="scope" value="following" /><span>This and following events (<span id="scopeFollowing">0</span>)</span></label>
+          <label><input type="radio" name="scope" value="all" /><span>Entire series (<span id="scopeAll">0</span> events, <span id="scopeRange"></span>)</span></label>
+        </div>
+        <div class="scope-note">Save applies only the fields you change (every day keeps its own time unless you edit the time). Delete removes whatever you pick above.</div>
+      </div>
+      <div id="applyHint" style="color:var(--muted);font-size:12px;margin:-4px 0 12px"></div>
+      <div class="modal-actions">
+        <button class="danger" id="delBtn" style="display:none">Delete</button>
+        <button id="cancelBtn">Cancel</button>
+        <button class="primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add user modal -->
+  <div class="overlay" id="userOverlay">
+    <div class="modal" style="width:min(360px,92vw)">
+      <h3>Add user</h3>
+      <div class="field">
+        <label>Name</label>
+        <input id="uName" type="text" placeholder="e.g. Sam" />
+      </div>
+      <div class="field">
+        <label>Color</label>
+        <div class="slider-wrap">
+          <input id="uColor" type="color" value="#6c8cff" style="width:48px;height:34px;padding:2px" />
+          <div class="tags" id="uSwatches" style="flex:1"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Timezone</label>
+        <select id="uTz" style="width:100%"></select>
+      </div>
+      <div class="modal-actions">
+        <button id="uCancel">Cancel</button>
+        <button class="primary" id="uSave">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- classic scripts sharing one scope: order matters (app.js runs init() last) -->
+  <script src="/static/lib.js"></script>
+  <script src="/static/assistant.js"></script>
+  <script src="/static/modal.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

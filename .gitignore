@@ -1,0 +1,19 @@
+# Secrets - never commit these
+auth.json
+.session_secret
+
+# Your group's data
+*.db
+*.db-journal
+*.db.bak*
+*.db-wal
+*.db-shm
+
+# Runtime / tooling noise
+*.log
+*.log.1
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env

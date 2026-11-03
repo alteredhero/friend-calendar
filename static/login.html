@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Friend Calendar - Sign in</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+    <div class="modal" style="width:min(360px,92vw)">
+      <h3 style="margin-top:0">Friend Calendar</h3>
+      <p style="color:var(--muted);font-size:13px;margin-top:0">Enter the shared password to continue.</p>
+      <div class="field">
+        <label>Password</label>
+        <input id="pw" type="password" autofocus style="width:100%" />
+      </div>
+      <div id="err" style="color:var(--busy);font-size:13px;min-height:18px;margin-bottom:8px"></div>
+      <div class="modal-actions">
+        <button class="primary" id="go" style="width:100%">Sign in</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    async function submit() {
+      $("err").textContent = "";
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: $("pw").value }),
+      });
+      if (res.ok) { window.location.href = "/"; }
+      else { $("err").textContent = "Wrong password. Try again."; $("pw").select(); }
+    }
+    $("go").addEventListener("click", submit);
+    $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  </script>
+</body>
+</html>
