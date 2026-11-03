@@ -18,7 +18,7 @@ between installs.
 You need **Python 3.10+**. Works on Windows, macOS and Linux.
 
 ```bash
-git clone <this-repo-url> friend-calendar
+git clone https://github.com/alteredhero/friend-calendar.git
 cd friend-calendar
 
 python -m venv .venv                      # optional but tidy
