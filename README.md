@@ -236,15 +236,16 @@ It builds in a clean virtualenv under `build\` and writes
 `build\installer\FriendCalendar-Setup-<version>.exe`. The `build\` folder and `*.exe` files are
 git-ignored; binaries belong on a Release, not in the repo.
 
-To publish a release:
+To publish a release, let GitHub Actions do it (`.github/workflows/release.yml`):
 1. Bump `__version__` in `version.py`, commit and push.
-2. `py -3.11 packaging\build.py`
-3. Check the SHA-256 and create the release:
-   ```bat
-   certutil -hashfile build\installer\FriendCalendar-Setup-<version>.exe SHA256
-   gh release create v<version> build\installer\FriendCalendar-Setup-<version>.exe --title "v<version>" --notes "..."
-   ```
-   Put the SHA-256 in the release notes so people can verify their download.
+2. Tag and push the tag: `git tag v<version>` then `git push origin v<version>`.
+3. The workflow builds the installer on a Windows runner and publishes the Release with the
+   installer, a `SHA256SUMS.txt`, and the checksum in the notes. It refuses to run if the tag
+   doesn't match `version.py`.
+
+To try a build without releasing anything, use **Actions > Build Windows installer > Run
+workflow**; the installer is attached to the run as an artifact. You can also build locally with
+`packaging\build.py` as above.
 
 The installer is **not code-signed**, so Windows SmartScreen warns on first run, and some
 antivirus tools are suspicious of any PyInstaller program. Signing needs a paid certificate;

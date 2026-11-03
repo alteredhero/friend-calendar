@@ -1,0 +1,101 @@
+name: Build Windows installer
+
+# Push a tag like v1.2.0  -> build the installer and publish a GitHub Release with it.
+# Run manually (Actions tab) -> build only; the installer is attached to the run as an artifact.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    permissions:
+      contents: write  # needed to create the release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Tag must match version.py
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          $version = python -c "from version import __version__; print(__version__)"
+          if ("v$version" -ne $env:TAG) {
+            Write-Error "Tag $env:TAG does not match version.py ($version). Bump version.py, then re-tag."
+            exit 1
+          }
+
+      - name: Make sure Inno Setup is installed
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Build the installer
+        run: python packaging/build.py
+
+      - name: Checksum
+        id: package
+        run: |
+          $installer = Get-ChildItem build\installer\FriendCalendar-Setup-*.exe | Select-Object -First 1
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $($installer.Name)" | Out-File build\installer\SHA256SUMS.txt -Encoding ascii
+          "name=$($installer.Name)" >> $env:GITHUB_OUTPUT
+          "hash=$hash" >> $env:GITHUB_OUTPUT
+          Write-Host "$($installer.Name)  SHA-256 $hash"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: |
+            build/installer/FriendCalendar-Setup-*.exe
+            build/installer/SHA256SUMS.txt
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          INSTALLER: ${{ steps.package.outputs.name }}
+          HASH: ${{ steps.package.outputs.hash }}
+        run: |
+          $notes = @'
+          ### Install
+          Download **{INSTALLER}** below and run it (no admin rights needed, no Python needed).
+          Requires 64-bit Windows 10 or 11. Your calendar data is kept in `%LOCALAPPDATA%\FriendCalendar`,
+          so upgrading or uninstalling never deletes it. See the [README](https://github.com/{REPO}#readme).
+
+          ### Windows may warn you
+          The installer is **not code-signed**, so SmartScreen can show "unknown publisher"
+          (choose **More info > Run anyway**), and some antivirus tools distrust PyInstaller programs.
+          This file was built by GitHub Actions from the tagged source. Verify your download:
+
+          ```
+          SHA-256  {HASH}
+          ```
+          `certutil -hashfile {INSTALLER} SHA256`
+
+          ### Disclaimer
+          Created with the help of AI tools. Review the code before relying on it, especially before
+          exposing it to the internet. Provided "as is", without warranty.
+
+          ---
+          '@
+          $notes = $notes.Replace('{INSTALLER}', $env:INSTALLER).Replace('{HASH}', $env:HASH).Replace('{REPO}', $env:GITHUB_REPOSITORY)
+          $files = @("build\installer\$env:INSTALLER", "build\installer\SHA256SUMS.txt")
+
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            # re-run for an existing release: replace its files
+            gh release upload $env:TAG @files --clobber
+          } else {
+            gh release create $env:TAG @files --title "Friend Calendar $env:TAG" --notes $notes --generate-notes
+          }
