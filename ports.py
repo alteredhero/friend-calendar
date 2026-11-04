@@ -11,18 +11,16 @@ SEARCH_RANGE = 50  # how many consecutive ports to try before letting the OS pic
 
 
 def _in_use(host: str, port: int) -> bool:
-    """True if something already owns the port.
+    """True if something already owns the port: just try to bind it, then let go.
 
-    Two checks, because either alone can be fooled on Windows: a wildcard bind (0.0.0.0) can
-    succeed even while another program listens on 127.0.0.1:port, so we also try to connect.
+    On Windows the bind is *exclusive*. A plain wildcard bind (0.0.0.0) can succeed even while
+    another program listens on 127.0.0.1:port; the exclusive flag makes that count as a clash.
+    (Don't replace this with a connect() probe: Windows takes ~2 s to refuse a closed port.)
     """
-    loopback = "127.0.0.1" if host in ("0.0.0.0", "") else host
-    with socket.socket() as probe:
-        probe.settimeout(0.3)
-        if probe.connect_ex((loopback, port)) == 0:
-            return True
     with socket.socket() as sock:
-        if os.name == "posix":  # match asyncio. (Never on Windows: there it lets sockets steal a port.)
+        if os.name == "nt":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:  # match asyncio's own listening socket
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind((host, port))
