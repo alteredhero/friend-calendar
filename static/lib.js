@@ -33,6 +33,14 @@ function hmWrap(min) {
 const niceDay = (day) => new Date(day + "T00:00:00")
   .toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 const tagColor = (t) => (TAGS[t] ? TAGS[t].color : "var(--muted)");
+
+// Anything a person typed (names, titles, details) MUST go through esc() before it is placed in an
+// innerHTML template, in element text or in a quoted attribute. (textContent and .value are safe.)
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+// colors end up inside style="...": accept only a plain #rrggbb, else the default blue
+const DEFAULT_COLOR = "#6c8cff";
+const safeColor = (c) => (/^#[0-9a-fA-F]{6}$/.test(c) ? c : DEFAULT_COLOR);
 function evLabel(e) {
   // prefer title, then the game/movie detail, then the tag name
   return e.title || e.detail || TAGS[e.tag].label;

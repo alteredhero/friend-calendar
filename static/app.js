@@ -16,7 +16,7 @@ let userTz = {};                  // name -> IANA timezone
 let involved = new Set();         // scheduling-assistant: people to consider
 let involvedInit = false;         // have we seeded 'involved' from users yet?
 
-const userColor = (name) => userColors[name] || "#6c8cff";
+const userColor = (name) => safeColor(userColors[name]);
 // event fill = a gradient from the owner's user color (left) into the tag color
 // (right) -- e.g. a "busy" event owned by a blue user goes blue -> red.
 const evGradient = (e) => `linear-gradient(90deg, ${userColor(e.owner)}, ${tagColor(e.tag)})`;
@@ -68,7 +68,7 @@ async function loadUsers() {
   const sel = $("me");
   const current = sel.value || localStorage.getItem("fc_me") || "";
   sel.innerHTML = `<option value="">-- none --</option>` +
-    names.map((n) => `<option value="${n}">${n}</option>`).join("");
+    names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
   sel.value = names.includes(current) ? current : "";
 }
 
@@ -172,7 +172,7 @@ function renderCalendar() {
     const day = ymd(viewYear, viewMonth, d);
     const evs = eventsOn(day);
     const shown = evs.slice(0, 3).map((e) =>
-      `<div class="evline" style="background:${evGradient(e)}" title="${e.owner}: ${evLabel(e)}">${e.owner}: ${evLabel(e)}</div>`
+      `<div class="evline" style="background:${evGradient(e)}" title="${esc(e.owner)}: ${esc(evLabel(e))}">${esc(e.owner)}: ${esc(evLabel(e))}</div>`
     ).join("");
     const more = evs.length > 3 ? `<span class="more">+${evs.length - 3} more</span>` : "";
     const cls = ["cell",
@@ -221,7 +221,7 @@ function renderSnapshot() {
       ? `<span class="series-mark" title="Part of a series - open it to edit them all">↻</span>` : "";
     return `<span class="chip" data-id="${e.id}" style="cursor:pointer" title="Click to edit">
        <span class="dot" style="background:${evGradient(e)}"></span>
-       <b>${e.owner}</b> · ${evLabel(e)}${mark}
+       <b>${esc(e.owner)}</b> · ${esc(evLabel(e))}${mark}
        <span style="color:var(--muted)">${hmWrap(v.rawS)}–${hmWrap(v.rawE)}</span>
        ${theirs}
        <span class="chip-x" data-del="${e.id}" title="Delete this event only">×</span>
@@ -257,9 +257,9 @@ function renderTimeline() {
       const width = Math.max(0, ((v.end - v.start) / 1440) * 100);
       const theirs = v.sameZone ? "" : ` · ${abbr} ${minToHM(e.start_min)}-${minToHM(e.end_min)}`;
       return `<div class="tl-block" style="left:${left}%;width:${width}%;background:${evGradient(e)}"
-                title="${evLabel(e)}: ${hmWrap(v.rawS)}-${hmWrap(v.rawE)} your time${theirs}">${evLabel(e)}</div>`;
+                title="${esc(evLabel(e))}: ${hmWrap(v.rawS)}-${hmWrap(v.rawE)} your time${theirs}">${esc(evLabel(e))}</div>`;
     }).join("");
-    return `<div class="tl-row"><div class="tl-name"><span class="dot" style="background:${userColor(owner)}"></span> ${owner} <span style="color:var(--muted)">${abbr}</span></div><div class="tl-track">${blocks}</div></div>`;
+    return `<div class="tl-row"><div class="tl-name"><span class="dot" style="background:${userColor(owner)}"></span> ${esc(owner)} <span style="color:var(--muted)">${abbr}</span></div><div class="tl-track">${blocks}</div></div>`;
   }).join("");
 }
 
