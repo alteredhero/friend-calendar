@@ -25,6 +25,8 @@ between installs.
    password**.
 4. A calendar icon appears in the system tray (it may hide under the `^` arrow). Click it to open
    the calendar in your browser, or share `http://<your-ip>:8032` with friends on your network.
+   (If 8032 is busy, the app picks the next free port and tells you; see
+   [If port 8032 is busy](#if-port-8032-is-busy).)
 
 Right-click the tray icon for **Set group password...**, **Back up data...**, **Open data
 folder**, **Start at login**, **View log**, **Restart** and **Quit**.
@@ -51,7 +53,8 @@ python set_password.py                    # 1. choose your group's password
 python main.py                            # 2. start the calendar
 ```
 
-Open http://localhost:8032, enter the password, then pick (or add) yourself as a user.
+Open http://localhost:8032 (the console prints the real address if that port was busy), enter
+the password, then pick (or add) yourself as a user.
 That's it. Your database (`calendar.db`) is created automatically on first run.
 
 To let friends in, see [Sharing it with your friends](#sharing-it-with-your-friends).
@@ -143,10 +146,26 @@ All optional, set as environment variables:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `FRIEND_CALENDAR_PORT` | `8032` | port to listen on |
+| `FRIEND_CALENDAR_PORT` | *(unset: starts at `8032` and roams)* | **pins** the port: use exactly this one and fail if it's taken |
 | `FRIEND_CALENDAR_HOST` | `0.0.0.0` | interface to bind (`127.0.0.1` = this machine only) |
 | `FRIEND_CALENDAR_PUBLIC_URL` | *(none)* | Windows tray only: adds an "Open public site" menu item |
 | `FRIEND_CALENDAR_DATA` | project folder (source) / `%LOCALAPPDATA%\FriendCalendar` (installed .exe) | where `calendar.db`, `auth.json`, `.session_secret` and the log live |
+
+### If port 8032 is busy
+By default the calendar *starts* at port 8032 and, if something else is using it, quietly moves up
+to the next free port (8033, 8034, ...). You'll see this in three places: the tray menu header
+(`... (port 8033)`), a tray notification, and the log (or the console when run from source).
+The tray's **Open calendar** always opens the right one.
+
+Because the address changes, remember:
+- **Friends on your network** need the new port in the link (`http://<your-ip>:8033`).
+- **A Cloudflare tunnel points at one fixed port**, so a roamed port would show friends a 502 error
+  while the tray looks healthy. If you host through a tunnel, **pin the port** so it can never move
+  (the app then reports an error instead). Windows: `setx FRIEND_CALENDAR_PORT 8032`, then restart
+  the tray. Elsewhere: export `FRIEND_CALENDAR_PORT=8032` in whatever starts the app.
+- Only one copy runs per data folder (a small `.instance.lock` file enforces it), so roaming can't
+  start a second server on the same calendar. Separate calendars (different
+  `FRIEND_CALENDAR_DATA`) can run side by side; each roams to its own port.
 
 Personal files that stay on your machine and are **never committed**: `auth.json` (password
 hash), `.session_secret` (cookie signing key), `calendar.db*` (your data) and `*.log`.
@@ -204,7 +223,7 @@ py  -3.11 tray_app.py --uninstall  :: stop starting at login
 ```
 A calendar icon appears in the system tray (Windows may tuck it under the `^` arrow; drag it out
 to keep it visible). Its corner dot is **green** (running), **amber** (starting) or **red**
-(stopped, usually because port 8032 is taken). Left-click opens the calendar; right-click gives
+(stopped, e.g. a pinned port is taken or startup failed: see the log). Left-click opens the calendar; right-click gives
 *Open public site* (only if `FRIEND_CALENDAR_PUBLIC_URL` is set), *Start at login*, *View log*, *Restart* and *Quit*. Output goes to
 `friend-calendar.log` (rolled over at ~1 MB).
 
@@ -262,6 +281,8 @@ just signs everyone out).
 ```
 main.py             FastAPI app + SQLite (auto-migrates on start)
 passwords.py        password hashing helper (PBKDF2, stdlib only)
+ports.py            finds a free port when the preferred one is busy
+instance.py         one running copy per data folder (lock file)
 paths.py            where the app's files and your data live (source vs. installed)
 version.py          the version number (used by the installer build)
 packaging/          Windows installer: build.py, installer.iss, icon + disclaimer text

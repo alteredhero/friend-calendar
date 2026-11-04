@@ -33,6 +33,7 @@ packaging/icon.ico
 *.db-shm
 
 # Runtime / tooling noise
+.instance.lock
 *.log
 *.log.1
 __pycache__/

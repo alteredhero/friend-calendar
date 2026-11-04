@@ -16,7 +16,6 @@ background app started at login gives you the icon and needs neither. (The trade
 starts when YOU log in, not at machine boot.)
 """
 import ctypes
-import hashlib
 import importlib.util
 import logging
 import os
@@ -25,6 +24,7 @@ import sys
 import threading
 import webbrowser
 
+import instance
 from paths import DATA_DIR, FROZEN, data_path
 
 SCRIPT = os.path.abspath(__file__)
@@ -36,11 +36,6 @@ PUBLIC_URL = os.environ.get("FRIEND_CALENDAR_PUBLIC_URL", "")
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "FriendCalendar"
-# One tray per data folder: a second launch of the *same* calendar exits quietly, while a
-# separate calendar (different FRIEND_CALENDAR_DATA and port) can run beside it.
-MUTEX_NAME = "Local\\FriendCalendarTray-" + hashlib.sha1(
-    os.path.normcase(DATA_DIR).encode()).hexdigest()[:12]
-ERROR_ALREADY_EXISTS = 183
 REQUIRED = ("fastapi", "uvicorn", "pystray", "PIL")
 
 GREEN, AMBER, RED = (75, 208, 123), (247, 209, 84), (255, 92, 114)
@@ -117,26 +112,6 @@ def setup_logging() -> None:
         sys.stdout = sys.stderr = open(LOG_PATH, "a", buffering=1, encoding="utf-8")
 
 
-_kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-_kernel32.CreateMutexW.restype = ctypes.c_void_p
-_kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
-_mutex = None
-
-
-def acquire_single_instance() -> bool:
-    """A named mutex makes a second launch (e.g. login + manual start) exit quietly."""
-    global _mutex
-    _mutex = _kernel32.CreateMutexW(None, False, MUTEX_NAME)
-    return ctypes.get_last_error() != ERROR_ALREADY_EXISTS
-
-
-def release_single_instance() -> None:
-    global _mutex
-    if _mutex:
-        _kernel32.CloseHandle(_mutex)
-        _mutex = None
-
-
 def popup_error(text: str) -> None:
     ctypes.windll.user32.MessageBoxW(None, text, "Friend Calendar", 0x10)  # MB_ICONERROR
 
@@ -193,14 +168,14 @@ def run() -> None:
     os.chdir(DATA_DIR)
     setup_logging()
     log = logging.getLogger("tray")
-    if not acquire_single_instance():
+    if not instance.acquire():  # a second launch of the same calendar (login + manual start) exits quietly
         log.info("another tray instance is already running - exiting")
         return
 
     import pystray
     import main as calendar  # the FastAPI app (runs its DB migration on import)
 
-    port = calendar.PORT
+    port = calendar.pick_port()  # the preferred port, or the next free one
     local_url = f"http://localhost:{port}"
     server = Server(calendar.app, calendar.HOST, port)
     done = threading.Event()  # set when the tray is shutting down (stops the watcher)
@@ -231,7 +206,7 @@ def run() -> None:
         log.info("restart requested")
         done.set()
         server.stop()
-        release_single_instance()  # so the new process can take the mutex
+        instance.release()  # so the new process can take the lock
         spawn()
         icon.stop()
 
@@ -273,6 +248,11 @@ def run() -> None:
 
     def setup(icon):
         icon.visible = True
+        if port != calendar.PORT:
+            log.warning("port %s is busy, using %s instead", calendar.PORT, port)
+            icon.notify(f"Port {calendar.PORT} is busy, so the calendar is using port {port}. Friends "
+                        "need the new address, and a tunnel must point at the new port.",
+                        "Friend Calendar")
         if not calendar.load_credential():
             icon.notify("No group password is set, so anyone who can reach this PC can edit the "
                         "calendar. Right-click this icon > Set group password.", "Friend Calendar")

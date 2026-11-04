@@ -45,7 +45,7 @@ friends get a Cloudflare error page (usually 502) until you sign in to Windows.
 | Hostname and routing | **Cloudflare dashboard**, not a file here (see "Changing the hostname") |
 | Shared password | `auth.json`, managed with `python set_password.py` (applies immediately; changing it signs everyone out) |
 | Data | `calendar.db` (project folder, or `%LOCALAPPDATA%\FriendCalendar` if you used the Windows installer) |
-| Port | `FRIEND_CALENDAR_PORT` env var (default 8032). If you change it, change the dashboard's service URL too |
+| Port | `FRIEND_CALENDAR_PORT` env var. **Set it when hosting through a tunnel** (e.g. `setx FRIEND_CALENDAR_PORT 8032`, then restart the tray): it pins the port. Without it the app roams to another port when 8032 is busy, and the tunnel would keep pointing at the old one (502). If you pin a different number, change the dashboard's service URL too |
 
 ## Everyday operations
 
@@ -62,10 +62,10 @@ friends get a Cloudflare error page (usually 502) until you sign in to Windows.
 | What you see | Likely cause | Fix |
 |---|---|---|
 | Browser says it **can't find / resolve** the host | The hostname isn't in Cloudflare DNS, usually a **typo**. Easy to do: `calender` is not `calendar` | `nslookup calendar.example.com` should return Cloudflare addresses (104.x / 172.67.x). If not, fix the hostname in the dashboard |
-| Cloudflare error page, **502 Bad gateway** | Tunnel is fine but the **app isn't answering** | Is the tray icon missing or red? Start it (`Friend Calendar.bat` > 4, or sign in so autostart runs). Check that `pythonw.exe` owns port 8032 |
+| Cloudflare error page, **502 Bad gateway** | Tunnel is fine but the **app isn't answering** | Is the tray icon missing or red? Start it (`Friend Calendar.bat` > 4, or sign in so autostart runs). Check that `pythonw.exe` owns port 8032. If the tray header shows a *different* port, the app roamed: free port 8032 and restart, or pin it (see "Where each setting lives") |
 | Cloudflare **error 1033** | The **tunnel is offline** | `sc query cloudflared`; start it from an admin prompt: `net start cloudflared` |
 | Only some URLs work, or others **404** | The hostname's **Path** field is not empty. We hit this: a leftover `^/blog` limited it to `/blog` | Edit the public hostname and **clear Path** |
-| Tray icon is **red** | Port 8032 is taken, e.g. a second `python main.py` is running | Close the other one (`Friend Calendar.bat` shows RUNNING/not running) |
+| Tray icon is **red** | A **pinned** port is taken, or startup failed | Read the log (tray > View log). Free the port, or unpin it and let the app pick another |
 
 ## Changing the hostname (or adding another)
 

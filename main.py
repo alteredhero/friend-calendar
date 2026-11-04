@@ -20,8 +20,10 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+import instance
+import ports
 from passwords import ALGORITHM, verify_password
-from paths import APP_DIR, data_path
+from paths import APP_DIR, DATA_DIR, data_path
 
 DB_PATH = data_path("calendar.db")
 STATIC_DIR = os.path.join(APP_DIR, "static")
@@ -31,6 +33,13 @@ AUTH_COOKIE = "fc_auth"
 
 HOST = os.environ.get("FRIEND_CALENDAR_HOST", "0.0.0.0")
 PORT = int(os.environ.get("FRIEND_CALENDAR_PORT", "8032"))
+# Setting FRIEND_CALENDAR_PORT pins the port exactly. Without it, PORT is only the first choice:
+# if it's busy we use the next free one (see ports.py).
+PORT_PINNED = "FRIEND_CALENDAR_PORT" in os.environ
+
+
+def pick_port() -> int:
+    return ports.choose_port(HOST, PORT, strict=PORT_PINNED)
 # how far an edit/delete reaches when an event belongs to a series
 SCOPES = ("single", "following", "all")
 
@@ -507,6 +516,14 @@ app.mount("/static", RevalidatingStatic(directory=STATIC_DIR), name="static")
 
 
 if __name__ == "__main__":
+    import sys
+
     import uvicorn
 
-    uvicorn.run(app, host=HOST, port=PORT)
+    if not instance.acquire():
+        sys.exit(f"Friend Calendar is already running for the data folder {DATA_DIR}")
+    port = pick_port()
+    if port != PORT:
+        print(f"Port {PORT} is busy, so using port {port} instead.")
+    print(f"Friend Calendar: open http://localhost:{port}  (Ctrl+C to stop)")
+    uvicorn.run(app, host=HOST, port=port)
