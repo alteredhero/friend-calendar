@@ -108,6 +108,10 @@ python backup.py import my-backup.zip --force # replace data that's already here
 - Importing checks the database first and **refuses a damaged or foreign file without touching
   anything**. With `--force`, whatever it replaces is kept as `*.bak-<timestamp>`.
 - **Stop the server before importing** (the importer tells you if a file is still in use).
+- **Upgrades keep a safety copy.** When a new version changes how your data is stored, it first
+  saves `calendar.db.bak-pre-vN` next to your database, then upgrades in one all-or-nothing step.
+  A database from a *newer* version is refused (with a clear message) instead of being damaged:
+  install the newer version, or restore a backup. Downgrading is not supported.
 
 ### Moving to a new PC or a dedicated server
 1. **Old machine:** `python backup.py export`, then copy the zip to the new machine
