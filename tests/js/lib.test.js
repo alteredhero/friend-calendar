@@ -11,7 +11,7 @@ const vm = require("node:vm");
 const source = fs.readFileSync(path.join(__dirname, "..", "..", "static", "lib.js"), "utf8");
 const raw = vm.runInNewContext(
   source + "\n;({ addDays, addMonths, addYears, recur, freeGaps, hmWrap, evLabel, minToHM, " +
-    "signed, zoneOf, tzOffsetMinutes, tzDiffMinutes })"
+    "signed, zoneOf, tzOffsetMinutes, tzDiffMinutes, esc, safeColor })"
 );
 // Arrays built inside the vm have a different Array.prototype, which deepStrictEqual rejects,
 // so copy array results across the boundary.
@@ -111,6 +111,42 @@ test("signed shows the hour difference with a sign", () => {
   assert.equal(lib.signed(0), "same");
   assert.equal(lib.signed(180), "+3h");
   assert.equal(lib.signed(-120), "\u22122h");
+});
+
+// ---- escaping --------------------------------------------------------------------
+test("esc escapes the five HTML-significant characters", () => {
+  assert.equal(lib.esc(`<a href="x" title='y'>&</a>`),
+    "&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;&lt;/a&gt;");
+});
+
+test("esc handles null, undefined and non-strings", () => {
+  assert.equal(lib.esc(null), "");
+  assert.equal(lib.esc(undefined), "");
+  assert.equal(lib.esc(42), "42");
+  assert.equal(lib.esc(0), "0");
+  assert.equal(lib.esc(""), "");
+});
+
+test("esc leaves ordinary text, unicode and spaces alone", () => {
+  assert.equal(lib.esc("Movie night \u2013 caf\u00e9 \u65e5\u672c\u8a9e"), "Movie night \u2013 caf\u00e9 \u65e5\u672c\u8a9e");
+});
+
+test("esc is not idempotent on purpose: already-escaped text is shown literally", () => {
+  assert.equal(lib.esc("&lt;"), "&amp;lt;");
+});
+
+test("esc stops an attribute breakout", () => {
+  const attr = `title="${lib.esc('" onmouseover="alert(1)')}"`;
+  assert.ok(!attr.includes('" onmouseover="'));
+});
+
+test("safeColor accepts #rrggbb only", () => {
+  assert.equal(lib.safeColor("#6c8cff"), "#6c8cff");
+  assert.equal(lib.safeColor("#ABCDEF"), "#ABCDEF");
+  for (const bad of [undefined, null, "", "red", "#fff", "#12345", "#1234567", "#12345g",
+                     "red;background:url(javascript:alert(1))", "#112233;x"]) {
+    assert.equal(lib.safeColor(bad), "#6c8cff", String(bad));
+  }
 });
 
 // ---- timezones -------------------------------------------------------------------

@@ -10,9 +10,9 @@ function renderAssistant() {
   const names = Object.keys(userColors);
   // people chips with checkboxes
   $("asstPeople").innerHTML = names.map((n) =>
-    `<label class="asst-person ${involved.has(n) ? "" : "off"}" data-name="${n}">
+    `<label class="asst-person ${involved.has(n) ? "" : "off"}" data-name="${esc(n)}">
        <input type="checkbox" ${involved.has(n) ? "checked" : ""} />
-       <span class="dot" style="background:${userColor(n)}"></span>${n}
+       <span class="dot" style="background:${userColor(n)}"></span>${esc(n)}
      </label>`).join("") || `<span class="empty" style="color:var(--muted)">Add some users first.</span>`;
   $("asstPeople").querySelectorAll(".asst-person input").forEach((cb) =>
     cb.addEventListener("change", () => {
@@ -40,9 +40,9 @@ function renderAssistant() {
       const left = (v.start / 1440) * 100;
       const width = Math.max(0, ((v.end - v.start) / 1440) * 100);
       return `<div class="tl-block" style="left:${left}%;width:${width}%;background:${evGradient(e)}"
-                title="${evLabel(e)}: ${hmWrap(v.rawS)}-${hmWrap(v.rawE)} your time">${evLabel(e)}</div>`;
+                title="${esc(evLabel(e))}: ${hmWrap(v.rawS)}-${hmWrap(v.rawE)} your time">${esc(evLabel(e))}</div>`;
     }).join("");
-    return `<div class="tl-row"><div class="tl-name"><span class="dot" style="background:${userColor(owner)}"></span> ${owner} <span style="color:var(--muted)">${abbr}</span></div><div class="tl-track">${blocks}</div></div>`;
+    return `<div class="tl-row"><div class="tl-name"><span class="dot" style="background:${userColor(owner)}"></span> ${esc(owner)} <span style="color:var(--muted)">${abbr}</span></div><div class="tl-track">${blocks}</div></div>`;
   }).join("");
 
   // combined free windows for everyone picked, in the viewer's timezone
@@ -60,7 +60,7 @@ function renderAssistant() {
   $("asstRows").innerHTML = rows + freeRow;
   const vAbbr = zoneOf(viewerTz()).abbr;
   $("asstFreeText").innerHTML = gaps.length
-    ? `<b>Open slots</b> for ${picked.join(", ")} <span style="color:var(--muted)">(your time, ${vAbbr})</span>: ` +
+    ? `<b>Open slots</b> for ${picked.map(esc).join(", ")} <span style="color:var(--muted)">(your time, ${vAbbr})</span>: ` +
       gaps.map(([s, e]) => `<span class="asst-free-chip">${minToHM(s)} – ${minToHM(e)}</span>`).join("")
     : `<span style="color:var(--busy)">No 30+ min slot where everyone is free that day.</span>`;
 }
