@@ -6,7 +6,6 @@ from contextlib import closing
 import pytest
 
 import backup
-import main
 import paths
 from conftest import event_payload
 

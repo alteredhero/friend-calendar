@@ -14,6 +14,8 @@ os.environ.pop("FRIEND_CALENDAR_PORT", None)
 
 import pytest  # noqa: E402
 
+import auth  # noqa: E402
+import db  # noqa: E402
 import main  # noqa: E402
 import paths  # noqa: E402
 from passwords import hash_password  # noqa: E402
@@ -23,10 +25,10 @@ from passwords import hash_password  # noqa: E402
 def data_dir(tmp_path, monkeypatch):
     """A fresh, empty data folder with an initialised database and no password."""
     monkeypatch.setattr(paths, "DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(main, "DB_PATH", str(tmp_path / "calendar.db"))
-    monkeypatch.setattr(main, "AUTH_PATH", str(tmp_path / "auth.json"))
-    monkeypatch.setattr(main, "SECRET_PATH", str(tmp_path / ".session_secret"))
-    main.init_db()
+    monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "calendar.db"))
+    monkeypatch.setattr(auth, "AUTH_PATH", str(tmp_path / "auth.json"))
+    monkeypatch.setattr(auth, "SECRET_PATH", str(tmp_path / ".session_secret"))
+    db.init_db()
     return tmp_path
 
 

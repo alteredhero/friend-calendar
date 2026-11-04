@@ -173,6 +173,7 @@ def run() -> None:
         return
 
     import pystray
+    import auth
     import main as calendar  # the FastAPI app (runs its DB migration on import)
 
     port = calendar.pick_port()  # the preferred port, or the next free one
@@ -253,7 +254,7 @@ def run() -> None:
             icon.notify(f"Port {calendar.PORT} is busy, so the calendar is using port {port}. Friends "
                         "need the new address, and a tunnel must point at the new port.",
                         "Friend Calendar")
-        if not calendar.load_credential():
+        if not auth.load_credential():
             icon.notify("No group password is set, so anyone who can reach this PC can edit the "
                         "calendar. Right-click this icon > Set group password.", "Friend Calendar")
         server.start()
