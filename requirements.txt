@@ -1,2 +1,4 @@
-fastapi
-uvicorn
+# Pinned exactly so every install (and every installer build) gets the versions CI tested.
+# Dependabot proposes updates weekly; CI runs the tests before they are merged.
+fastapi==0.162.0
+uvicorn==0.54.0
