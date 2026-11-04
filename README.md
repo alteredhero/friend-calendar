@@ -313,3 +313,7 @@ The four scripts are classic `<script>`s sharing one global scope, so **load ord
 - `GET /api/users`, `POST /api/users` (`name`, `color`, `timezone`)
 
 `start_min` / `end_min` are minutes since midnight in the owner's timezone (0-1440).
+
+## License
+[MIT](LICENSE). Use it, change it, share it. The AI-assistance disclaimer at the top of this
+README still applies: the software is provided as is, without warranty.
