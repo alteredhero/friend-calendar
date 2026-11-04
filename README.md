@@ -289,7 +289,12 @@ just signs everyone out).
 
 ## Files
 ```
-main.py             FastAPI app + SQLite (auto-migrates on start)
+main.py             wires the app together; `python main.py` starts it
+auth.py             shared-password gate and login routes
+events.py           event models and /api/events routes
+users.py            user models and /api/users routes
+db.py               SQLite: location, connections, schema (auto-migrates on start)
+web.py              static-file helpers
 passwords.py        password hashing helper (PBKDF2, stdlib only)
 ports.py            finds a free port when the preferred one is busy
 instance.py         one running copy per data folder (lock file)
