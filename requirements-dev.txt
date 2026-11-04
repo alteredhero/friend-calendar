@@ -1,3 +1,5 @@
 -r requirements.txt
-pytest
-httpx2
+pytest==9.2.0
+# httpx2 dropped Python 3.10 after 2.14, so 3.10 gets the newest release it can run
+httpx2==2.16.0; python_version >= "3.11"
+httpx2==2.14.0; python_version < "3.11"
