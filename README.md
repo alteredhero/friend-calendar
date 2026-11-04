@@ -242,6 +242,16 @@ to allow port 8032 through Windows Firewall). Install the dependencies with
 > After an update, a device that still shows a broken page needs one hard refresh (Ctrl+F5).
 > The server now tells browsers to revalidate, so this shouldn't recur.
 
+## Running the tests
+GitHub Actions runs everything on each push and pull request (`.github/workflows/ci.yml`). Locally:
+
+```bash
+python -m venv .venv                   # then activate it, as in the quick start
+pip install -r requirements-dev.txt
+python -m pytest                       # API, auth, backup, ports, instance lock
+node --test "tests/js/**/*.test.js"    # the pure helpers in static/lib.js (needs Node 22+)
+```
+
 ## Building the Windows installer (maintainers)
 The installer is a PyInstaller-frozen `tray_app.py` wrapped by [Inno Setup](https://jrsoftware.org/isinfo.php).
 You need Windows, Python 3.10+ (with tkinter) and Inno Setup 6
@@ -285,6 +295,7 @@ ports.py            finds a free port when the preferred one is busy
 instance.py         one running copy per data folder (lock file)
 paths.py            where the app's files and your data live (source vs. installed)
 version.py          the version number (used by the installer build)
+tests/              pytest suite (tests/*.py) and node tests for lib.js (tests/js/)
 packaging/          Windows installer: build.py, installer.iss, icon + disclaimer text
 requirements-build.txt  extra tooling to build the installer
 set_password.py     CLI to set / change / clear the group password
